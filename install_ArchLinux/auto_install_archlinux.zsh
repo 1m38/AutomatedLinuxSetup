@@ -1,16 +1,90 @@
 #!/bin/zsh
 
-# ==== input informations
-vared -p "Hostname: " -c NEWHOSTNAME
-vared -p "Root password: " -c NEWROOTPASS
+# ==== parse arguments
+local -A opthash
+zparseopts -D -M -A opthash -- \
+    -help h=-help \
+    -hostname: \
+    -device: \
+    -swap: \
+    -boot:
+
+if [[ -n "${opthash[(i)--help]}" ]]; then
+    cat << EOF
+Automatically setup ArchLinux.
+Usage: zsh auto_install_archlinux.zsh [--help] [-h] [--hostname HOSTNAME] [--device DEVICE] [--swap SWAP_SIZE_GB] [--boot BOOT_PARTITION_TYPE]
+
+options:
+    --help, -h: show this help.
+    --hostname HOSTNAME: hostname for the installing ArchLinux
+    --device DEVICE: device name install ArchLinux for (e.g: sda -> install for /dev/sda)
+    --swap SWAP_SIZE_GB: size of swap partition. If 0, won't create a swap partition.
+    --boot BOOT_PARTITION_TYPE: /boot partition type (EF00 or EF02)
+EOF
+    exit
+fi
+
+# ==== gather informations
+# hostname
+if [[ -n "${opthash[(i)--hostname]}" ]]; then
+    NEWHOSTNAME=${opthash[--hostname]}
+else
+    vared -p "Hostname: " -c NEWHOSTNAME
+fi
+
+# root password
+while :; do
+    read -s "?Root password: " NEWROOTPASS
+    echo
+    read -s "?Confirm root password: " CONFIRM_ROOT_PASS
+    echo
+    if [[ $NEWROOTPASS = $CONFIRM_ROOT_PASS ]]; then
+        break
+    else
+        echo "Password confirmation failed."
+    fi
+done
 
 # target storage
-lsblk
-echo "Partitions will be created (all data on the disk will be deleted)."
-vared -p "Install device (e.g: sda): " -c DEVICE_DISK_INSTALL
+if [[ -n "${opthash[(i)--device]}" ]]; then
+    DEVICE_DISK_INSTALL=${opthash[--device]}
+else
+    lsblk
+    echo "Partitions will be created (all data on the disk will be deleted)."
+    vared -p "Install device (e.g: sda): " -c DEVICE_DISK_INSTALL
+fi
+# check target storage
+if [[ ! -e /dev/${DEVICE_DISK_INSTALL} ]]; then
+    echo "device /dev/${DEVICE_DISK_INSTALL} not found. Abort."
+    exit 1
+fi
+
 # partitions: boot, root and swap(optional)
-vared -p "Swap size at GiB (zero: won't create swap): " -c SWAP_SIZE_GB
-vared -p "/boot partition type (Virtualbox/VMware: EF02, others: EF00): " -c BOOT_PARTITION_TYPE
+if [[ -n "${opthash[(i)--swap]}" ]]; then
+    SWAP_SIZE_GB=${opthash[--swap]}
+else
+    vared -p "Swap size at GiB (zero: won't create swap): " -c SWAP_SIZE_GB
+fi
+
+if [[ -n "${opthash[(i)--boot]}" ]]; then
+    BOOT_PARTITION_TYPE=${opthash[--boot]}
+else
+    vared -p "/boot partition type (Virtualbox/VMware: EF02, others: EF00): " -c BOOT_PARTITION_TYPE
+fi
+
+echo
+echo "Hostname: ${NEWHOSTNAME}"
+echo "Device for install: /dev/${DEVICE_DISK_INSTALL}"
+echo "Swap size: ${SWAP_SIZE_GB}GB"
+echo "/boot partition type: ${BOOT_PARTITION_TYPE}"
+
+read "?Continue? [Y/n]" Answer
+case $Answer in
+    '' | [Yy]* ) ;;
+    * )
+        exit
+        ;;
+esac
 
 
 set -exu
