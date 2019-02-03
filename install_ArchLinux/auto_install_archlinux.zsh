@@ -10,7 +10,18 @@ zparseopts -D -M -A opthash -- \
     -boot:
 
 if [[ -n "${opthash[(i)--help]}" ]]; then
-    echo "help"
+    cat << EOF
+Automatically setup ArchLinux.
+Usage: zsh auto_install_archlinux.zsh [--help] [-h] [--hostname HOSTNAME] [--device DEVICE] [--swap SWAP_SIZE_GB] [--boot BOOT_PARTITION_TYPE]
+
+options:
+    --help, -h: show this help.
+    --hostname HOSTNAME: hostname for the installing ArchLinux
+    --device DEVICE: device name install ArchLinux for (e.g: sda -> install for /dev/sda)
+    --swap SWAP_SIZE_GB: size of swap partition. If 0, won't create a swap partition.
+    --boot BOOT_PARTITION_TYPE: /boot partition type (EF00 or EF02)
+EOF
+    exit
 fi
 
 # ==== gather informations
